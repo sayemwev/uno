@@ -1,0 +1,1434 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>UNO PRO - Rematch Updated</title>
+    <!-- PeerJS for WebRTC Global Connection -->
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;700&family=Nunito:wght@600;800&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-dark: #1a1a2e;
+            --red: #ff4757;
+            --blue: #1e90ff; 
+            --green-uno: #2ed573; 
+            --yellow: #ffa502;
+            --black: #2f3542;
+            --card-back-grad: linear-gradient(135deg, #e17055, #d63031);
+            --card-border: 2px solid #fff;
+            --glass-bg: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --neon-glow: 0 0 15px rgba(255, 165, 2, 0.6);
+            --shadow-soft: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        * { box-sizing: border-box; user-select: none; -webkit-tap-highlight-color: transparent; }
+        
+        body {
+            margin: 0; padding: 0;
+            font-family: 'Nunito', sans-serif;
+            background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+            height: 100vh; overflow: hidden; color: white;
+        }
+
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* SCREEN & UI */
+        .screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: none; flex-direction: column; align-items: center; justify-content: center;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(8px);
+            z-index: 10;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+        }
+        .screen.active { display: flex !important; opacity: 1; }
+
+        h1, h2 { font-family: 'Fredoka', sans-serif; text-shadow: 0 4px 10px rgba(0,0,0,0.3); letter-spacing: 1px; }
+
+        .btn {
+            padding: 16px 32px; border: none; border-radius: 16px;
+            font-size: 1.2rem; font-weight: 800; cursor: pointer; margin: 10px; color: white;
+            transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 6px 0 rgba(0,0,0,0.2), 0 10px 20px rgba(0,0,0,0.2);
+            min-width: 200px; display: flex; align-items: center; justify-content: center; gap: 12px;
+            text-transform: uppercase; position: relative; overflow: hidden;
+        }
+        .btn:active { transform: translateY(6px); box-shadow: 0 0 0 rgba(0,0,0,0.2); }
+        .btn:disabled { background: #555; cursor: not-allowed; transform: none; box-shadow: none; color: #888; }
+        
+        .btn-bot { background: linear-gradient(to bottom, #f39c12, #d35400); }
+        .btn-friends { background: linear-gradient(to bottom, #3498db, #2980b9); }
+        .btn-primary { background: linear-gradient(to bottom, #8e44ad, #8e44ad); }
+        .btn-success { background: linear-gradient(to bottom, #2ecc71, #27ae60); }
+        .btn-danger { background: linear-gradient(to bottom, #e74c3c, #c0392b); }
+        .btn-secondary { background: #34495e; color: #ecf0f1; }
+        .btn-warning { background: linear-gradient(to bottom, #f1c40f, #f39c12); color: #2c3e50; }
+
+        input, select {
+            padding: 18px; border-radius: 15px; border: 2px solid rgba(255,255,255,0.3);
+            background: rgba(0,0,0,0.4); color: white; text-align: center; font-size: 1.3rem;
+            width: 85%; max-width: 350px; outline: none; margin-bottom: 25px;
+            font-family: 'Nunito', sans-serif; font-weight: bold; transition: all 0.3s;
+        }
+        input:focus, select:focus { border-color: var(--yellow); background: rgba(0,0,0,0.6); }
+
+        .main-logo {
+            font-size: 6rem; margin: 0 0 20px 0; color: var(--yellow); font-family: 'Fredoka'; 
+            text-shadow: 4px 4px 0px var(--red), 8px 8px 0px rgba(0,0,0,0.2);
+            animation: bounceLogo 2s infinite ease-in-out;
+        }
+        @keyframes bounceLogo {
+            0%, 100% { transform: scale(1) rotate(-5deg); }
+            50% { transform: scale(1.1) rotate(5deg); }
+        }
+
+        .lobby-card {
+            background: rgba(255,255,255,0.1); backdrop-filter: blur(5px); padding: 12px 20px;
+            margin: 8px 0; border-radius: 10px; display: flex; align-items: center; gap: 10px;
+            border-left: 5px solid var(--green-uno); width: 100%; animation: slideIn 0.3s ease forwards;
+            justify-content: space-between;
+        }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(-20px); } to { opacity: 1; transform: translateX(0); } }
+
+        .glass-panel {
+            background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; padding: 30px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.3); text-align: center; max-width: 90%;
+        }
+
+        /* --- GAME BOARD --- */
+        #game-area {
+            position: relative; width: 100%; height: 100%;
+            background: radial-gradient(circle, #592929, #2b1010, #000000);
+            overflow: hidden; z-index: 1;
+        }
+
+        .seat { position: absolute; display: flex; align-items: center; justify-content: center; z-index: 5; transition: all 0.3s ease; }
+        .seat-top { top: 20px; left: 50%; transform: translateX(-50%); flex-direction: column; }
+        .seat-left { top: 45%; left: 0; transform: translateY(-50%); flex-direction: row; justify-content: flex-start; }
+        .seat-right { top: 45%; right: 0; transform: translateY(-50%); flex-direction: row; justify-content: flex-end; }
+
+        .p-info-box {
+            background: rgba(0,0,0,0.6); padding: 5px 10px; border-radius: 8px;
+            text-align: center; border: 1px solid rgba(255,255,255,0.3); z-index: 20;
+            display: flex; gap: 5px; align-items: center; justify-content: center;
+            white-space: nowrap; box-shadow: 0 2px 5px rgba(0,0,0,0.5); font-size: 0.8rem;
+            flex-direction: column;
+        }
+
+        .seat-left .p-info-box { text-orientation: mixed; padding: 10px 5px; margin: 0 15px; }
+        .seat-right .p-info-box { text-orientation: mixed; padding: 10px 5px; margin: 0 15px; }
+        .seat-top .p-info-box { margin-top: 10px; margin-bottom: 0; }
+        
+        .card-stack { 
+            display: flex; align-items: center; justify-content: center; position: relative; 
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); opacity: 0; 
+        }
+        .card-stack.visible { opacity: 1; transition: opacity 0.5s; }
+        
+        .seat.active-turn .card-stack { transform: scale(1.2); filter: drop-shadow(0 0 10px var(--yellow)); }
+        .seat.active-turn .p-info-box { border-color: var(--yellow); box-shadow: 0 0 10px var(--yellow); background: rgba(255, 165, 2, 0.3); }
+
+        .opp-card {
+            background: var(--card-back-grad); border: var(--card-border); border-radius: 5px;
+            box-shadow: -2px 2px 5px rgba(0,0,0,0.4); position: relative; display: flex; align-items: center; justify-content: center;
+        }
+        .opp-card::after {
+            content: "UNO"; font-size: 8px; font-weight: bold; color: rgba(255,255,255,0.3); 
+            font-family: 'Fredoka'; transform: rotate(-25deg);
+        }
+
+        .stack-horizontal { flex-direction: row; }
+        .stack-horizontal .opp-card { width: 40px; height: 60px; margin-right: -28px; }
+        .stack-horizontal .opp-card:last-child { margin-right: 0; }
+        .stack-vertical { flex-direction: column; }
+        .stack-vertical .opp-card { width: 70px; height: 45px; margin-bottom: -35px; }
+        .stack-vertical .opp-card:last-child { margin-bottom: 0; }
+
+        .seat-left .card-stack { margin-left: -40px; }
+        .seat-left .opp-card { border-top-right-radius: 8px; border-bottom-right-radius: 8px; }
+        .seat-right .card-stack { margin-right: -40px; }
+        .seat-right .opp-card { border-top-left-radius: 8px; border-bottom-left-radius: 8px; }
+
+        .p-name { font-size: 0.9rem; font-weight: bold; color: #fff; text-shadow: 1px 1px 2px black; }
+        .p-score-badge { font-size: 0.8rem; color: var(--yellow); background: rgba(0,0,0,0.5); padding: 2px 5px; border-radius: 4px; margin-top: 2px; }
+
+        .table-center {
+            position: absolute; top: 48%; left: 50%; transform: translate(-50%, -50%);
+            display: flex; gap: 30px; align-items: center;
+        }
+
+        .direction-spin {
+            position: absolute; width: 320px; height: 320px; top: 48%; left: 50%; 
+            transform: translate(-50%, -50%); pointer-events: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Cpath d='M100,20 A80,80 0 0,1 180,100' style='fill:none;stroke:rgba(255,255,255,0.15);stroke-width:8;stroke-dasharray:10,15;stroke-linecap:round;'/%3E%3Cpath d='M100,180 A80,80 0 0,1 20,100' style='fill:none;stroke:rgba(255,255,255,0.15);stroke-width:8;stroke-dasharray:10,15;stroke-linecap:round;'/%3E%3C/svg%3E");
+            background-size: contain; background-repeat: no-repeat; background-position: center; border: none; z-index: 1;
+        }
+        .spin-cw { animation: spinRight 40s linear infinite; }
+        .spin-ccw { animation: spinLeft 40s linear infinite; }
+        @keyframes spinRight { 0%{transform:translate(-50%,-50%) rotate(0deg);} 100%{transform:translate(-50%,-50%) rotate(360deg);} }
+        @keyframes spinLeft { 0%{transform:translate(-50%,-50%) rotate(360deg);} 100%{transform:translate(-50%,-50%) rotate(0deg);} }
+
+        #starter-arrow-container {
+            position: absolute; top: 48%; left: 50%; width: 0; height: 0; z-index: 200; display: none;
+        }
+        #starter-arrow {
+            position: absolute; top: 0; left: 0; width: 160px; height: 10px; background: transparent; transform-origin: left center;
+        }
+        #starter-arrow::after {
+            content: ''; position: absolute; right: -20px; top: -25px;
+            border-top: 30px solid transparent; border-bottom: 30px solid transparent; border-left: 60px solid #00d2d3;
+            filter: drop-shadow(0 0 10px #00d2d3); animation: arrowPulse 0.5s infinite alternate;
+        }
+        @keyframes arrowPulse { from { transform: scale(1); } to { transform: scale(1.2); } }
+
+        .card {
+            width: 80px; height: 120px; background: white; border-radius: 10px; position: relative; cursor: pointer;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.4); display: flex; justify-content: center; align-items: center;
+            border: 4px solid white; font-family: 'Fredoka', sans-serif; transition: transform 0.2s;
+        }
+        .card-inner {
+            width: 100%; height: 100%; border-radius: 6px; display: flex; justify-content: center; align-items: center;
+            font-size: 2.5rem; color: white; text-shadow: 2px 2px 0 rgba(0,0,0,0.3); position: relative; overflow: hidden;
+        }
+        .card-inner::before {
+            content: ''; position: absolute; width: 140%; height: 100%; background: rgba(255,255,255,0.2); transform: rotate(45deg);
+        }
+        .c-red { background: var(--red); }
+        .c-blue { background: var(--blue); } 
+        .c-green { background: var(--green-uno); }
+        .c-yellow { background: var(--yellow); }
+        .c-black { background: #2f3542; background-image: linear-gradient(135deg, #2f3542 0%, #000 100%); }
+
+        .card-icon-corner { position: absolute; font-size: 1rem; color: white; padding: 4px; }
+        .tl { top: 0; left: 0; }
+        .br { bottom: 0; right: 0; transform: rotate(180deg); }
+
+        .pile-slot {
+            width: 80px; height: 120px; border: 2px dashed rgba(255,255,255,0.3); border-radius: 10px;
+            display: flex; justify-content: center; align-items: center;
+        }
+        .deck-pile {
+            background: linear-gradient(135deg, #e17055, #d63031); border: 3px solid white; border-radius: 10px;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.4); transition: all 0.3s;
+        }
+        .deck-pile.hint-active {
+            animation: bounceGlow 1s ease-in-out infinite; border-color: #ffd700; box-shadow: 0 0 20px #ffd700;
+        }
+        @keyframes bounceGlow {
+            0%, 100% { transform: scale(1); } 50% { transform: scale(1.15); box-shadow: 0 0 30px #ffff00; }
+        }
+        .deck-pile::after {
+            content: "UNO"; color: rgba(255,255,255,0.8); font-weight: bold; font-family: 'Fredoka'; font-size: 1.5rem; transform: rotate(-25deg);
+        }
+        .deck-pile:active { transform: scale(0.95); }
+
+        .color-bubble {
+            position: absolute; top: -50px; left: 50%; transform: translateX(-50%); width: 40px; height: 40px; border-radius: 50%;
+            border: 3px solid white; box-shadow: 0 0 15px white; transition: background 0.3s;
+        }
+
+        .my-hand-area {
+            position: absolute; bottom: 0; left: 0; width: 100%; height: 240px;
+            background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
+            z-index: 20; display: flex; flex-direction: column; align-items: center;
+            pointer-events: none; transition: transform 0.3s ease; opacity: 0;
+        }
+        .my-hand-area.visible { opacity: 1; transition: opacity 0.5s; }
+        .my-hand-area.my-turn-active .hand-scroll { transform: scale(1.05) translateY(-10px); }
+
+        .hand-scroll {
+            display: flex; justify-content: center; align-items: flex-end; width: 100%; overflow-x: auto; overflow-y: visible;
+            padding-bottom: 20px; height: 100%; padding-left: 20px; padding-right: 20px; padding-top: 60px;
+            pointer-events: auto; transition: transform 0.3s ease;
+        }
+        .hand-card-wrapper { margin-left: -40px; transition: margin 0.3s, transform 0.3s; position: relative; flex-shrink: 0; }
+        .hand-card-wrapper:first-child { margin-left: 0; }
+        .hand-card-wrapper.valid-card { transform: translateY(-25px); z-index: 10; }
+        .hand-card-wrapper.valid-card .card { box-shadow: 0 0 15px #f1c40f; border-color: #f1c40f; }
+        .hand-card-wrapper:hover { transform: translateY(-50px) scale(1.1); z-index: 20; margin: 0 15px; }
+        .hand-card-wrapper.disabled { filter: grayscale(0.8) brightness(0.6); pointer-events: none; }
+
+        .flying-card { 
+            position: fixed; z-index: 1000; transition: all 0.6s ease-in-out; pointer-events: none; 
+            width: 80px; height: 120px; border-radius: 10px; box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+        }
+
+        .projectile-card {
+            position: fixed; top: 50%; left: 50%; width: 60px; height: 90px;
+            background: linear-gradient(135deg, #e17055, #d63031); border: 2px solid white; border-radius: 6px; z-index: 9999;
+            transform: translate(-50%, -50%); box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+            transition: all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+        .projectile-card::after {
+            content: "UNO"; position: absolute; top:50%; left:50%; transform:translate(-50%,-50%) rotate(-25deg);
+            color: rgba(255,255,255,0.4); font-weight:bold; font-size:14px;
+        }
+
+        #uno-btn {
+            position: absolute; right: 20px; bottom: 250px; width: 80px; height: 80px; border-radius: 50%;
+            background: linear-gradient(135deg, #e17055, #d63031); border: 4px solid white; color: white; font-weight: 900;
+            display: none; align-items: center; justify-content: center; font-size: 1.5rem; cursor: pointer;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5); animation: pulse 1s infinite; z-index: 30;
+        }
+        @keyframes pulse { 0% {transform:scale(1);} 50% {transform:scale(1.1);} 100% {transform:scale(1);} }
+
+        #status-msg {
+            position: absolute; top: 18%; left: 50%; transform: translateX(-50%);
+            background: rgba(0,0,0,0.8); padding: 10px 20px; border-radius: 30px;
+            font-size: 1rem; border: 1px solid rgba(255,255,255,0.2); opacity: 0; transition: opacity 0.3s;
+            pointer-events: none; z-index: 100; text-align: center; width: 90%;
+        }
+        
+        #game-scoreboard {
+            position: absolute; top: 20px; left: 20px; 
+            background: rgba(0,0,0,0.6); padding: 10px; border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.2); pointer-events: none;
+            display: none; flex-direction: column; gap: 5px; z-index: 40;
+        }
+        .sb-row { display: flex; justify-content: space-between; gap: 15px; font-size: 0.9rem; }
+        .sb-name { color: white; }
+        .sb-score { color: var(--yellow); font-weight: bold; }
+
+        .top-controls {
+            position: absolute; right: 20px; top: 20px; display: flex; gap: 10px; z-index: 50;
+        }
+        .ctrl-btn {
+            width: 50px; height: 50px; border-radius: 50%; background: #444; color: white; display: flex;
+            align-items: center; justify-content: center; font-size: 1.2rem; cursor: pointer;
+            border: 2px solid #666; transition: all 0.2s;
+        }
+        .ctrl-btn:active { transform: scale(0.9); }
+        .ctrl-btn.active { background: var(--green-uno); border-color: white; }
+        .ctrl-btn.muted { background: var(--red); border-color: white; }
+        .ctrl-btn.sfx-off { background: #888; color: #ccc; border-color: #aaa; text-decoration: line-through; }
+        .mute-opponent-btn { font-size: 0.8rem; color: #ccc; cursor: pointer; margin-top: 5px; }
+        .mute-opponent-btn.muted { color: var(--red); }
+
+        #action-overlay {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 100%; height: 100%; pointer-events: none; z-index: 1500; display: flex; align-items: center; justify-content: center;
+        }
+        .anim-reverse-modern, .anim-skip-modern {
+            position: relative; width: 300px; height: 300px; animation: popInFade 2s ease forwards;
+        }
+        .rev-arrow {
+            position: absolute; width: 100%; height: 100%; border: 20px solid transparent; border-top: 20px solid var(--yellow);
+            border-radius: 50%; animation: spinRevSmooth 1.5s cubic-bezier(0.4, 0.0, 0.2, 1) infinite;
+        }
+        .rev-arrow::after {
+            content: ''; position: absolute; top: -35px; right: 20px; border: 30px solid transparent; border-bottom: 40px solid var(--yellow); transform: rotate(45deg);
+        }
+        .rev-icon-center {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 80px; color: white; text-shadow: 0 0 20px var(--yellow);
+        }
+        .anim-skip-modern {
+            width: 160px; height: 160px; background: radial-gradient(circle, #ff4757, #bd0a22);
+            border-radius: 50%; border: 6px solid white; display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 0 30px rgba(255, 71, 87, 0.8); animation: elasticScale 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+            transition: transform 0.8s ease-in-out, opacity 0.8s;
+        }
+        .anim-skip-modern i { font-size: 80px; color: white; opacity: 0.9; }
+        .anim-draw-text-only {
+            font-size: 150px; font-weight: 900; color: white; font-family: 'Fredoka'; z-index: 50;
+            text-shadow: 0px 0px 20px rgba(0,0,0,0.8), 4px 4px 0px #000; animation: textPopFade 2.5s ease forwards;
+        }
+
+        @keyframes textPopFade { 0% { transform: scale(0); opacity:0; } 20% { transform: scale(1.2); opacity:1; } 40% { transform: scale(1); opacity:1; } 100% { transform: scale(1.5); opacity:0; } }
+        @keyframes spinRevSmooth { 0% { transform: rotate(0deg); } 100% { transform: rotate(-360deg); } }
+        @keyframes popInFade { 0% { opacity: 0; transform: scale(0.5); } 20% { opacity: 1; transform: scale(1.1); } 80% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(0.5); } }
+        @keyframes elasticScale { 0% { transform: scale(0); } 60% { transform: scale(1.2); } 100% { transform: scale(1); } }
+
+        #modal-color {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 2000; display: none; align-items: center; justify-content: center;
+        }
+        .color-wheel {
+            width: 300px; height: 300px; border-radius: 50%; position: relative; overflow: hidden;
+            border: 8px solid white; box-shadow: 0 0 30px rgba(0,0,0,0.8); animation: wheelIn 0.5s ease-out;
+        }
+        .cw-sec {
+            position: absolute; width: 50%; height: 50%; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center;
+        }
+        .cw-sec:hover { filter: brightness(1.2); }
+        .cw-tl { top: 0; left: 0; background: var(--red); border-bottom-right-radius: 100%; }
+        .cw-tr { top: 0; right: 0; background: var(--blue); border-bottom-left-radius: 100%; }
+        .cw-bl { bottom: 0; left: 0; background: var(--yellow); border-top-right-radius: 100%; }
+        .cw-br { bottom: 0; right: 0; background: var(--green-uno); border-top-left-radius: 100%; }
+        .cw-center {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 80px; height: 80px; background: white; border-radius: 50%; z-index: 5;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 50px; font-weight: bold; color: #333; font-family: 'Fredoka';
+        }
+
+        /* --- REMATCH SCREEN STYLES --- */
+        #screen-winner {
+            background: radial-gradient(circle at center, #2b1010, #000000); 
+            z-index: 3000; 
+            overflow-y: auto; 
+            padding: 20px 0;
+            display: none; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center;
+        }
+        .win-cup { 
+            font-size: 100px; color: gold; margin-bottom: 20px; animation: bounce 2s infinite; 
+            filter: drop-shadow(0 0 30px rgba(255, 215, 0, 0.6)); 
+        }
+        .win-text { font-size: 2rem; color: white; font-family: 'Fredoka'; margin: 5px 0; text-align: center; }
+        .win-name { font-size: 3rem; color: var(--green-uno); font-weight: bold; text-shadow: 0 0 10px var(--green-uno); margin-bottom: 20px; text-align: center; }
+        
+        .rematch-panel {
+            background: rgba(255, 255, 255, 0.1); border-radius: 15px; padding: 20px; width: 90%; max-width: 450px;
+            display: none; flex-direction: column; align-items: center; text-align: center;
+            border: 1px solid rgba(255,255,255,0.2); margin-top: 10px;
+        }
+        .timer-big { font-size: 3rem; font-weight: bold; color: var(--yellow); font-family: 'Fredoka'; margin: 10px 0; }
+        .rematch-msg { font-size: 1.2rem; margin-bottom: 15px; color: #eee; }
+        .rematch-btn-row { display: flex; gap: 15px; width: 100%; justify-content: center; flex-wrap: wrap; }
+        
+        .player-list-box {
+            width: 100%; background: rgba(0,0,0,0.3); border-radius: 10px; max-height: 150px; overflow-y: auto;
+            margin-bottom: 15px; padding: 10px; text-align: left;
+        }
+        .plist-item { padding: 5px 10px; border-bottom: 1px solid rgba(255,255,255,0.1); color: #ddd; display: flex; justify-content: space-between; }
+        .plist-item i { color: var(--green-uno); margin-right: 8px; }
+
+        .leaderboard-table { width: 100%; margin-bottom: 20px; border-collapse: collapse; }
+        .leaderboard-table th, .leaderboard-table td { padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.2); text-align: center; }
+        .leaderboard-table th { color: var(--yellow); text-transform: uppercase; font-size: 0.9rem; }
+        .leaderboard-table tr:first-child td { font-size: 1.2rem; font-weight: bold; color: var(--green-uno); }
+
+        @media (max-width: 600px) {
+            .win-cup { font-size: 70px; }
+            .win-text { font-size: 1.5rem; }
+            .win-name { font-size: 2rem; }
+            .rematch-btn-row { flex-direction: column; }
+            .rematch-btn-row .btn { width: 100%; margin: 5px 0; }
+            .main-logo { font-size: 4rem; }
+        }
+        
+        @keyframes bounce { 0%, 20%, 50%, 80%, 100% {transform: translateY(0);} 40% {transform: translateY(-30px);} 60% {transform: translateY(-15px);} }
+        @keyframes wheelIn { from { transform: scale(0) rotate(-180deg); } to { transform: scale(1) rotate(0deg); } }
+
+    </style>
+</head>
+<body>
+
+    <div id="action-overlay"></div>
+
+    <!-- MAIN MENU -->
+    <div id="screen-menu" class="screen active">
+        <div class="glass-panel" style="padding: 40px; border-radius: 30px; width: 90%; max-width: 500px; display:flex; flex-direction:column; align-items:center;">
+            <div class="main-logo">UNO</div>
+            <p style="font-size: 1.2rem; color: #eee; margin-top: -10px; margin-bottom: 30px;">Global Online Pro Edition</p>
+            
+            <input type="text" id="my-name" placeholder="আপনার নাম লিখুন (Required)" value="">
+            
+            <button class="btn btn-bot" onclick="showBotSetup()">
+                <i class="fas fa-robot"></i> Play with Bot
+            </button>
+            
+            <button class="btn btn-friends" onclick="showFriendsSelection()">
+                <i class="fas fa-users"></i> Play with Friends
+            </button>
+        </div>
+    </div>
+
+    <!-- FRIENDS SELECTION -->
+    <div id="screen-friends-selection" class="screen">
+        <div class="glass-panel">
+            <h2 style="color:var(--blue); font-size:2.5rem; margin-bottom:10px;">Play with Friends</h2>
+            <p style="margin-bottom:30px; color:#ddd;">Choose an option to start:</p>
+            
+            <button class="btn btn-primary" onclick="createGame()">
+                <i class="fas fa-plus-circle"></i> Create Room
+            </button>
+            
+            <button class="btn btn-success" onclick="showJoinScreen()">
+                <i class="fas fa-sign-in-alt"></i> Join Room
+            </button>
+            
+            <button class="btn btn-danger" onclick="hideAll(); show('screen-menu')" style="margin-top: 30px;">
+                <i class="fas fa-arrow-left"></i> Back
+            </button>
+        </div>
+    </div>
+
+    <!-- BOT SETUP -->
+    <div id="screen-bot-setup" class="screen">
+        <div class="glass-panel">
+            <h2 style="font-size: 2.2rem; color: var(--yellow);">Bot Setup</h2>
+            <div class="bot-setup-container" style="text-align: center; margin-top: 20px;">
+                <label style="display:block; margin-bottom:10px; font-weight:bold;">Bot সংখ্যা (Number of Bots)</label>
+                <select id="bot-count">
+                    <option value="1">1 Bot</option>
+                    <option value="2">2 Bots</option>
+                    <option value="3" selected>3 Bots</option>
+                </select>
+                
+                <label style="display:block; margin-bottom:10px; font-weight:bold; margin-top:15px;">কঠিনতার স্তর (Difficulty)</label>
+                <select id="bot-difficulty">
+                    <option value="easy">Easy (সহজ)</option>
+                    <option value="medium">Medium (মাঝারি)</option>
+                    <option value="hard">Hard (খুব কঠিন)</option>
+                </select>
+                
+                <div style="margin-top:30px; display:flex; flex-direction:column; align-items:center;">
+                    <button class="btn btn-warning" onclick="startBotGame()"><i class="fas fa-play"></i> Start Game</button>
+                    <button class="btn btn-danger" onclick="hideAll(); show('screen-menu')"><i class="fas fa-arrow-left"></i> Back</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JOIN SCREEN -->
+    <div id="screen-join" class="screen">
+        <div class="glass-panel">
+            <h2 style="color:var(--green-uno); font-size:2.2rem;">Join Room</h2>
+            <p style="margin-bottom:20px;">Enter the Host's Room Code below:</p>
+            <input type="text" id="join-code" placeholder="Paste Code Here">
+            <button class="btn btn-success" onclick="joinGame()"><i class="fas fa-check-circle"></i> Enter Room</button>
+            <button class="btn btn-danger" onclick="showFriendsSelection()"><i class="fas fa-times"></i> Cancel</button>
+        </div>
+    </div>
+
+    <!-- LOBBY -->
+    <div id="screen-lobby" class="screen">
+        <div class="glass-panel" style="width: 90%; max-width: 500px;">
+            <h2 style="margin-top:0;">Game Lobby</h2>
+            <div style="background:rgba(0,0,0,0.3); padding:15px; border-radius:15px; margin-bottom:20px; border:1px solid rgba(255,255,255,0.1);">
+                <span style="color:#aaa; font-size:0.9rem; text-transform:uppercase; letter-spacing:1px;">Room Code</span>
+                <h1 id="lobby-code-display" style="margin:5px 0; letter-spacing:3px; color:var(--blue); font-size:2rem; user-select:text;">Generating...</h1>
+            </div>
+
+            <!-- Game Mode Settings (Only visible to Host) -->
+            <div id="host-settings" style="display:none; margin-bottom:20px; background:rgba(0,0,0,0.2); padding:15px; border-radius:10px;">
+                <label style="display:block; color:var(--yellow); font-size:0.9rem; margin-bottom:5px;">Game Mode</label>
+                <select id="game-mode-select" style="margin-bottom:10px; padding:10px; width:100%;">
+                    <option value="classic">Classic (একবার জিতলেই শেষ)</option>
+                    <option value="points" selected>Points (পয়েন্ট সিস্টেম)</option>
+                </select>
+                
+                <div id="points-limit-wrapper">
+                    <label style="display:block; color:var(--yellow); font-size:0.9rem; margin-bottom:5px;">Target Points (যে হারবে)</label>
+                    <select id="points-limit-select" style="margin-bottom:0; padding:10px; width:100%;">
+                        <option value="50">50 Points</option>
+                        <option value="100" selected>100 Points</option>
+                        <option value="200">200 Points</option>
+                        <option value="500">500 Points</option>
+                    </select>
+                </div>
+            </div>
+
+            <h3 style="text-align:left; margin-left:10px; color:#ddd;">Players Joined:</h3>
+            <div id="lobby-players" style="width:100%; text-align:left; max-height: 200px; overflow-y:auto;"></div>
+            
+            <button id="start-btn" class="btn btn-primary" style="display:none; margin-top:30px; width:100%;" onclick="startGameHost()">
+                <i class="fas fa-play"></i> Start Game
+            </button>
+        </div>
+    </div>
+
+    <!-- WINNER / LEADERBOARD SCREEN -->
+    <div id="screen-winner" class="screen">
+        <i class="fas fa-trophy win-cup"></i>
+        <div id="win-title-text" class="win-text">Winner!</div>
+        <div id="winner-name" class="win-name">Player Name</div>
+
+        <!-- Leaderboard Table for Points Mode -->
+        <div id="leaderboard-container" class="rematch-panel">
+             <h3 style="margin-top:0; color:var(--yellow);">Final Standings</h3>
+             <table class="leaderboard-table">
+                 <thead><tr><th>Rank</th><th>Name</th><th>Score</th></tr></thead>
+                 <tbody id="leaderboard-body"></tbody>
+             </table>
+        </div>
+
+        <!-- CLIENT REMATCH VIEW -->
+        <div id="client-rematch-view" class="rematch-panel">
+            <div class="rematch-msg">আপনি কি আবার খেলতে চান?</div>
+            <div id="client-timer" class="timer-big">5</div>
+            <div id="client-actions" class="rematch-btn-row">
+                <button class="btn btn-danger" onclick="clientVote(false)">না (No)</button>
+                <button class="btn btn-success" onclick="clientVote(true)">হ্যাঁ (Yes)</button>
+            </div>
+            <div id="client-wait-msg" style="display:none; margin-top:10px; color:#aaa;">
+                এডমিনের সিদ্ধান্তের জন্য অপেক্ষা করুন...
+            </div>
+        </div>
+
+        <!-- ADMIN REMATCH VIEW -->
+        <div id="admin-rematch-view" class="rematch-panel">
+            <div class="rematch-msg">যারা খেলতে ইচ্ছুক:</div>
+            <div class="player-list-box" id="rematch-player-list"></div>
+            
+            <!-- Voting Timer -->
+            <div id="admin-vote-timer-area">
+                <div style="font-size:0.9rem; color:#aaa;">Voting Time</div>
+                <div id="admin-timer" class="timer-big">5</div>
+            </div>
+
+            <!-- Decision Timer (Initially Hidden) -->
+            <div id="admin-decision-area" style="display:none;">
+                <div style="font-size:0.9rem; color:var(--red);">Decision Time</div>
+                <div id="admin-decision-timer" class="timer-big" style="color:var(--red);">8</div>
+            </div>
+
+            <div id="admin-status-text" style="color:#aaa; margin-bottom:10px;">Collecting responses...</div>
+            
+            <div class="rematch-btn-row">
+                <button class="btn btn-danger" onclick="adminGoHome()">Go to Home</button>
+                <button id="admin-start-btn" class="btn btn-success" disabled onclick="adminStartGame()">Start Game</button>
+            </div>
+        </div>
+
+        <!-- BOT GAME OVER VIEW -->
+        <div id="bot-game-over-view" class="rematch-panel">
+            <div class="rematch-btn-row">
+                <button class="btn btn-secondary" onclick="goHome()"><i class="fas fa-home"></i> Home</button>
+                <button class="btn btn-primary" onclick="startBotGame()"><i class="fas fa-redo"></i> Play Again</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- GAME BOARD -->
+    <div id="screen-game" class="screen" style="background:transparent;">
+        <div id="game-area">
+            <div class="top-controls">
+                <div id="sfx-btn" onclick="toggleSfx()" class="ctrl-btn"><i class="fas fa-music"></i></div>
+                <div id="mic-btn" onclick="toggleMic()" class="ctrl-btn muted"><i class="fas fa-microphone-slash"></i></div>
+            </div>
+
+            <!-- Scoreboard (Visible in Points Mode) -->
+            <div id="game-scoreboard"></div>
+            
+            <div id="seat-top" class="seat seat-top"></div>
+            <div id="seat-left" class="seat seat-left"></div>
+            <div id="seat-right" class="seat seat-right"></div>
+
+            <div class="direction-spin" id="dir-spinner"></div>
+            <div id="starter-arrow-container"><div id="starter-arrow"></div></div>
+
+            <div id="status-msg">Game Started</div>
+
+            <div class="table-center">
+                <div class="card deck-pile" id="draw-pile" onclick="drawCardReq()"></div>
+                <div class="pile-slot" id="discard-pile"></div>
+                <div class="color-bubble" id="active-color-bubble"></div>
+            </div>
+
+            <div id="uno-btn" onclick="sayUno()">UNO</div>
+
+            <div class="my-hand-area" id="my-hand-area-container">
+                <div style="margin-bottom: 5px; color: #ccc;" id="turn-indicator">অপেক্ষা করুন...</div>
+                <div class="hand-scroll" id="my-hand"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-color">
+        <div class="color-wheel">
+            <div class="cw-sec cw-tl" onclick="selectColor('red')"></div>
+            <div class="cw-sec cw-tr" onclick="selectColor('blue')"></div>
+            <div class="cw-sec cw-bl" onclick="selectColor('yellow')"></div>
+            <div class="cw-sec cw-br" onclick="selectColor('green')"></div>
+            <div class="cw-center">?</div>
+        </div>
+    </div>
+
+    <div id="audio-container" style="display:none;"></div>
+
+    <script>
+        // --- GAME LOGIC ---
+        const COLORS = ['red', 'blue', 'green', 'yellow'];
+        const SPECIALS = ['skip', 'reverse', 'draw2'];
+        let peer, conn, myId, myName, isHost = false, isBotMode = false, botDifficulty = 'medium', hostConnections = []; 
+        let localStream = null, peerCalls = {}, isMicOn = false, micPermissionGranted = false;
+        
+        // Settings for Game Mode
+        let gameSettings = { mode: 'classic', pointLimit: 100 };
+
+        let gameState = { players: [], deck: [], discard: [], turnIdx: 0, direction: 1, activeColor: null, activeValue: null, gameStatus: 'lobby', winner: null, settings: {} };
+        let myHand = [], serverHands = {}, pendingPlay = null;
+        let turnHintTimeout = null;
+        let isSfxOn = true;
+
+        // Rematch Variables
+        let rematchTimerInt = null;
+        let rematchDecisionTimerInt = null;
+        let rematchPlayers = []; 
+        let adminCanStart = false;
+
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        function playSound(type) {
+            if(!isSfxOn) return;
+            if(audioCtx.state === 'suspended') audioCtx.resume();
+            const t = audioCtx.currentTime;
+            if (type === 'throw') {
+                const bufferSize = audioCtx.sampleRate * 0.1; const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate); const data = buffer.getChannelData(0); for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1; const src = audioCtx.createBufferSource(); src.buffer = buffer; const filter = audioCtx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.setValueAtTime(800, t); filter.frequency.exponentialRampToValueAtTime(100, t + 0.1); const gain = audioCtx.createGain(); gain.gain.setValueAtTime(0.5, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.1); src.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination); src.start(t);
+            } else if (type === 'draw') {
+                const bufferSize = audioCtx.sampleRate * 0.2; const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate); const data = buffer.getChannelData(0); for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1; const src = audioCtx.createBufferSource(); src.buffer = buffer; const filter = audioCtx.createBiquadFilter(); filter.type = 'bandpass'; filter.frequency.setValueAtTime(1200, t); const gain = audioCtx.createGain(); gain.gain.setValueAtTime(0.05, t); gain.gain.linearRampToValueAtTime(0.1, t + 0.1); gain.gain.linearRampToValueAtTime(0.0, t + 0.2); src.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination); src.start(t);
+            } else if (type === 'uno') {
+                const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain(); osc.type = 'sine'; osc.frequency.setValueAtTime(523.25, t); osc.frequency.exponentialRampToValueAtTime(1046.5, t + 0.1); gain.gain.setValueAtTime(0.3, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 1.0); osc.connect(gain); gain.connect(audioCtx.destination); osc.start(t); osc.stop(t + 1);
+            } else if (type === 'win') {
+                [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => { const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain(); osc.type = 'triangle'; osc.frequency.value = freq; gain.gain.setValueAtTime(0, t + i*0.1); gain.gain.linearRampToValueAtTime(0.2, t + i*0.1 + 0.05); gain.gain.exponentialRampToValueAtTime(0.01, t + i*0.1 + 1.5); osc.connect(gain); gain.connect(audioCtx.destination); osc.start(t + i*0.1); osc.stop(t + i*0.1 + 2); });
+            }
+        }
+
+        const $ = id => document.getElementById(id);
+        const hideAll = () => document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+        const show = id => $(id).classList.add('active');
+        const toast = (msg) => { const el = $('status-msg'); el.innerText = msg; el.style.opacity = 1; setTimeout(() => el.style.opacity = 0, 3000); };
+        const delay = ms => new Promise(res => setTimeout(res, ms));
+
+        function toggleSfx() { isSfxOn = !isSfxOn; const btn = $('sfx-btn'); btn.className = isSfxOn ? 'ctrl-btn' : 'ctrl-btn sfx-off'; btn.innerHTML = isSfxOn ? '<i class="fas fa-music"></i>' : '<i class="fas fa-slash"></i>'; }
+        
+        function startTurnTimer() {
+            clearDrawHint();
+            const hasPlayable = myHand.some(c => c.color === 'black' || c.color === gameState.activeColor || c.value === gameState.activeValue);
+            if (!hasPlayable) turnHintTimeout = setTimeout(() => { $('draw-pile').classList.add('hint-active'); }, 3000);
+        }
+        function clearDrawHint() { if(turnHintTimeout) clearTimeout(turnHintTimeout); $('draw-pile').classList.remove('hint-active'); }
+
+        async function setupAudio() {
+            try { 
+                localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false }); 
+                localStream.getAudioTracks()[0].enabled = false; 
+                isMicOn = false; 
+                micPermissionGranted = true; 
+                updateMicBtn(); 
+            } 
+            catch (err) { 
+                console.warn("Audio not available:", err);
+                micPermissionGranted = false; 
+                const btn = $('mic-btn'); 
+                btn.style.opacity = '0.5'; 
+            }
+        }
+        function toggleMic() { if (!localStream || !micPermissionGranted) return; isMicOn = !isMicOn; localStream.getAudioTracks()[0].enabled = isMicOn; updateMicBtn(); }
+        function updateMicBtn() { const btn = $('mic-btn'); btn.className = isMicOn ? 'ctrl-btn active' : 'ctrl-btn muted'; btn.innerHTML = isMicOn ? '<i class="fas fa-microphone"></i>' : '<i class="fas fa-microphone-slash"></i>'; }
+        function toggleOpponentMute(peerId, btnElement) { const audioEl = document.getElementById(`audio-${peerId}`); if(audioEl) { audioEl.muted = !audioEl.muted; btnElement.className = `mute-opponent-btn ${audioEl.muted ? 'muted' : ''}`; btnElement.innerHTML = audioEl.muted ? '<i class="fas fa-volume-mute"></i>' : '<i class="fas fa-volume-up"></i>'; } }
+
+        function initPeer(callback) {
+            const id = Math.random().toString(36).substr(2, 6).toUpperCase();
+            peer = new Peer(id, { 
+                debug: 1,
+                config: {
+                    iceServers: [
+                        { urls: 'stun:stun.l.google.com:19302' },
+                        { urls: 'stun:stun1.l.google.com:19302' }
+                    ]
+                }
+            });
+
+            peer.on('open', (id) => { myId = id; if(callback) callback(id); });
+            peer.on('connection', (c) => {
+                c.on('data', (data) => { isHost ? handleHostData(c, data) : handleClientData(data); });
+                c.on('close', () => { if(isHost) removePlayer(c.peer); else handleHostDisconnect(); });
+                c.on('error', () => { if(!isHost) handleHostDisconnect(); });
+
+                if(isHost) { 
+                    hostConnections.push(c); 
+                    c.on('open', () => { 
+                        c.send({ type: 'STATE', state: gameState }); 
+                        if(localStream) { const call = peer.call(c.peer, localStream); handleMediaCall(call); } 
+                    }); 
+                }
+            });
+            peer.on('call', (call) => { localStream ? call.answer(localStream) : call.answer(); handleMediaCall(call); });
+            
+            peer.on('error', (err) => {
+                console.error("Peer Error:", err);
+                if (err.type === 'unavailable-id') {
+                    peer.destroy();
+                    setTimeout(() => initPeer(callback), 500);
+                } else {
+                    toast("Connection Error: " + err.type);
+                }
+            });
+        }
+        
+        function handleHostDisconnect() {
+            if(gameState.gameStatus !== 'ended') {
+                alert("এডমিন একটিভ নয়। হোমপেইজে ফিরে যাওয়া হচ্ছে।");
+                goHome();
+            }
+        }
+        
+        function handleMediaCall(call) {
+            peerCalls[call.peer] = call;
+            call.on('stream', (remoteStream) => {
+                if(!document.getElementById(`audio-${call.peer}`)) {
+                    const audio = document.createElement('audio'); 
+                    audio.id = `audio-${call.peer}`; 
+                    audio.srcObject = remoteStream; 
+                    audio.autoplay = true; 
+                    audio.playsInline = true;
+                    $('audio-container').appendChild(audio);
+                }
+            });
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedName = localStorage.getItem('uno_player_name');
+            if (savedName) document.getElementById('my-name').value = savedName;
+            
+            // Host Settings Listeners
+            $('game-mode-select').addEventListener('change', (e) => {
+                if(e.target.value === 'points') $('points-limit-wrapper').style.display = 'block';
+                else $('points-limit-wrapper').style.display = 'none';
+            });
+        });
+
+        function validateAndSaveName() {
+            const nameInput = document.getElementById('my-name'); const name = nameInput.value.trim();
+            if (!name) { alert("দয়া করে আপনার নাম লিখুন (Please enter your name first)."); nameInput.focus(); nameInput.style.borderColor = "red"; return false; }
+            localStorage.setItem('uno_player_name', name); nameInput.style.borderColor = "rgba(255,255,255,0.3)"; return true;
+        }
+
+        function showBotSetup() { if(!validateAndSaveName()) return; hideAll(); show('screen-bot-setup'); }
+        function showFriendsSelection() { if(!validateAndSaveName()) return; hideAll(); show('screen-friends-selection'); }
+        
+        async function createGame() { 
+            if(!validateAndSaveName()) return; 
+            await setupAudio(); 
+            myName = $('my-name').value; 
+            isHost = true; 
+            hideAll(); 
+            show('screen-lobby'); 
+            $('host-settings').style.display = 'block'; 
+            $('lobby-code-display').innerText = "Generating...";
+            
+            initPeer((id) => { 
+                gameState.players = [{ id: id, name: myName, handCount: 0, isBot: false, score: 0 }]; 
+                $('lobby-code-display').innerText = id; 
+                renderLobby(); 
+            }); 
+        }
+        
+        async function showJoinScreen() { if(!validateAndSaveName()) return; await setupAudio(); myName = $('my-name').value; hideAll(); show('screen-join'); }
+        function joinGame() { const code = $('join-code').value; if(!code) return; isHost = false; initPeer(() => { conn = peer.connect(code, { serialization: 'json', reliable: true }); conn.on('open', () => { conn.send({ type: 'JOIN', name: myName }); if(localStream) peer.call(code, localStream); hideAll(); show('screen-lobby'); }); conn.on('data', (data) => handleClientData(data)); }); }
+        
+        function startBotGame() { 
+            myName = $('my-name').value; 
+            let count = parseInt($('bot-count').value); 
+            botDifficulty = $('bot-difficulty').value; 
+            isHost = true; isBotMode = true; myId = "human"; 
+            
+            gameState.settings = { mode: 'classic', pointLimit: 100 }; 
+            
+            gameState.players = [{ id: myId, name: myName, handCount: 0, isBot: false, score: 0 }]; 
+            for(let i=1; i<=count; i++) gameState.players.push({ id: `bot-${i}`, name: `Bot ${i}`, handCount: 0, isBot: true, score: 0 }); 
+            hideAll(); show('screen-game'); startGameHost(); 
+        }
+
+        function handleHostData(conn, data) {
+            if(data.type === 'JOIN') { 
+                if(gameState.gameStatus !== 'lobby') return; 
+                gameState.players.push({ id: conn.peer, name: data.name, handCount: 0, isBot: false, score: 0 }); 
+                broadcastState(); broadcastPeerList(); 
+            }
+            if(data.type === 'PLAY_CARD') processPlayCard(conn.peer, data.cardIdx, data.wildColor, data.unoCalled);
+            if(data.type === 'DRAW_CARD') processDrawCard(conn.peer);
+            
+            if(data.type === 'REMATCH_YES') {
+                let p = gameState.players.find(x => x.id === conn.peer);
+                if (p && !rematchPlayers.find(rp => rp.id === conn.peer)) {
+                    rematchPlayers.push(p);
+                    updateRematchListUI();
+                }
+            }
+            if(data.type === 'LEAVE_GAME') removePlayer(conn.peer);
+        }
+        
+        function broadcastPeerList() { if(!isBotMode) hostConnections.forEach(c => c.send({ type: 'PEER_LIST', peers: gameState.players.map(p=>p.id) })); }
+        function connectToNewPeers(list) { list.forEach(pid => { if(pid !== myId && !peerCalls[pid] && localStream) handleMediaCall(peer.call(pid, localStream)); }); }
+        
+        async function startGameHost() {
+            if(isHost && !isBotMode) {
+                gameSettings.mode = $('game-mode-select').value;
+                gameSettings.pointLimit = parseInt($('points-limit-select').value);
+                gameState.settings = gameSettings;
+            }
+
+            createDeck();
+            serverHands = {};
+            gameState.players.forEach(p => { serverHands[p.id] = []; });
+            let startCard; while(true) { let idx = gameState.deck.findIndex(c => c.color !== 'black' && typeof c.value === 'number'); if(idx !== -1) { startCard = gameState.deck.splice(idx, 1)[0]; break; } }
+            gameState.discard = [startCard]; gameState.activeColor = startCard.color; gameState.activeValue = startCard.value; gameState.direction = 1; gameState.winner = null;
+            gameState.turnIdx = Math.floor(Math.random() * gameState.players.length);
+            gameState.gameStatus = 'dealing'; 
+            broadcastState(); 
+            await performDealingSequence();
+            await performFirstPlayerSpin();
+            gameState.gameStatus = 'playing';
+            broadcastState();
+            checkBotTurn();
+        }
+
+        async function startNextRound() {
+            createDeck();
+            gameState.players.forEach(p => { 
+                serverHands[p.id] = []; 
+                p.handCount = 0;
+            });
+            
+            let startCard; while(true) { let idx = gameState.deck.findIndex(c => c.color !== 'black' && typeof c.value === 'number'); if(idx !== -1) { startCard = gameState.deck.splice(idx, 1)[0]; break; } }
+            gameState.discard = [startCard]; gameState.activeColor = startCard.color; gameState.activeValue = startCard.value; gameState.direction = 1;
+            gameState.turnIdx = (gameState.turnIdx + 1) % gameState.players.length; 
+            
+            gameState.gameStatus = 'dealing';
+            broadcastState();
+            await performDealingSequence();
+            await performFirstPlayerSpin();
+            gameState.gameStatus = 'playing';
+            broadcastState();
+            checkBotTurn();
+        }
+
+        async function performDealingSequence() {
+            for(let r=0; r<7; r++) {
+                for(let i=0; i<gameState.players.length; i++) {
+                    let pid = gameState.players[i].id;
+                    let card = gameState.deck.pop();
+                    serverHands[pid].push(card);
+                    broadcastDrawAnimation(pid);
+                    await delay(100); 
+                }
+            }
+            gameState.players.forEach(p => p.handCount = 7);
+            distributeHandsToClients();
+            broadcastShowHands();
+            await delay(500);
+        }
+
+        async function performFirstPlayerSpin() {
+            let targetPid = gameState.players[gameState.turnIdx].id;
+            let msg = { type: 'SPIN_TO_START', targetId: targetPid };
+            if(isBotMode) handleSpinAnimation(targetPid); else { hostConnections.forEach(c => c.send(msg)); handleSpinAnimation(targetPid); }
+            await delay(3500);
+        }
+
+        function createDeck() { gameState.deck = []; COLORS.forEach(color => { gameState.deck.push({color, value: 0}); for(let i=1; i<=9; i++) { gameState.deck.push({color, value: i}); gameState.deck.push({color, value: i}); } SPECIALS.forEach(val => { gameState.deck.push({color, value: val}); gameState.deck.push({color, value: val}); }); }); for(let i=0; i<4; i++) { gameState.deck.push({color: 'black', value: 'wild'}); gameState.deck.push({color: 'black', value: 'wild4'}); } gameState.deck.sort(() => Math.random() - 0.5); }
+
+        function triggerActionAnimation(type, color, targetId) {
+            const overlay = $('action-overlay'); overlay.innerHTML = ''; let animHTML = '';
+            if (type === 'reverse') animHTML = `<div class="anim-reverse-modern"><div class="rev-arrow"></div><i class="fas fa-sync-alt rev-icon-center"></i></div>`;
+            else if (type === 'skip') animHTML = `<div class="anim-skip-modern"><i class="fas fa-ban"></i></div>`;
+            else if (type === 'draw4') animHTML = `<div class="anim-draw-text-only" style="color:#ff4757">+4</div>`;
+            else if (type === 'draw2') { let txtColor = color === 'red' ? '#ff4757' : (color === 'blue' ? '#1e90ff' : (color === 'yellow' ? '#ffa502' : '#2ed573')); animHTML = `<div class="anim-draw-text-only" style="color:${txtColor}">+2</div>`; }
+            overlay.innerHTML = animHTML;
+            if (targetId && (type === 'draw4' || type === 'draw2' || type === 'skip')) {
+                let targetEl = (targetId === myId) ? $('my-hand-area-container') : $(`stack-${targetId}`); if (!targetEl) targetEl = document.querySelector('.seat-top');
+                if (targetEl) { let rect = targetEl.getBoundingClientRect(); spawnProjectiles((type === 'draw4' ? 4 : (type === 'draw2' ? 2 : 1)), rect.left + rect.width / 2, rect.top + rect.height / 2, type); }
+            }
+            setTimeout(() => { overlay.innerHTML = ''; }, 2500);
+        }
+
+        function spawnProjectiles(count, destX, destY, type) {
+            for (let i = 0; i < count; i++) {
+                setTimeout(() => {
+                    let card = document.createElement('div'); card.className = 'projectile-card'; 
+                    if (type === 'skip') { card.style.background = '#2f3542'; card.innerHTML = '<i class="fas fa-ban" style="font-size:30px; color:white; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%)"></i>'; card.style.border = '2px solid red'; } else card.style.background = 'linear-gradient(135deg, #e17055, #d63031)';
+                    document.body.appendChild(card); playSound('throw'); void card.offsetWidth;
+                    let centerX = window.innerWidth / 2; let centerY = window.innerHeight / 2;
+                    let moveX = destX - centerX; let moveY = destY - centerY;
+                    card.style.transform = `translate(calc(-50% + ${moveX}px), calc(-50% + ${moveY}px)) scale(0.2) rotate(${Math.random() * 360}deg)`; card.style.opacity = '0'; 
+                    setTimeout(() => { card.remove(); }, 800);
+                }, i * 250 + 500);
+            }
+        }
+
+        function broadcastActionEffect(type, color, targetId) {
+            const msg = { type: 'SHOW_EFFECT', effect: type, color: color, targetId: targetId };
+            if (isBotMode) handleAnimationEvent(msg); else { hostConnections.forEach(c => c.send(msg)); handleAnimationEvent(msg); }
+        }
+
+        function calculateHandScore(hand) {
+            let score = 0;
+            hand.forEach(c => {
+                if(typeof c.value === 'number') score += c.value;
+                else if(c.value === 'draw2') score += 20;
+                else if(c.value === 'wild4') score += 50;
+                else if(c.value === 'reverse') score += 20;
+                else if(c.value === 'skip') score += 20;
+                else if(c.value === 'wild') score += 50;
+            });
+            return score;
+        }
+
+        function processPlayCard(pid, cardIdx, wildColor, unoCalled) {
+            let pIdx = gameState.players.findIndex(p => p.id === pid); if(pIdx !== gameState.turnIdx) return; 
+            let hand = serverHands[pid]; let card = hand[cardIdx];
+            
+            broadcastAnimation(pid, card); 
+            hand.splice(cardIdx, 1); 
+            gameState.discard.push(card); 
+            gameState.players[pIdx].handCount = hand.length;
+            
+            if(hand.length === 1 && !unoCalled) { drawFromDeck(pid, 2); broadcastToast(`${gameState.players[pIdx].name} forgot UNO!`); }
+            
+            // --- WIN / ROUND END LOGIC ---
+            if(hand.length === 0) { 
+                playSound('win');
+                if (gameState.settings.mode === 'points') {
+                    let limit = gameState.settings.pointLimit || 100;
+                    let gameEnded = false;
+                    gameState.players.forEach(p => {
+                        if (p.id !== pid) {
+                            let s = calculateHandScore(serverHands[p.id]);
+                            p.score += s;
+                        }
+                        if (p.score >= limit) gameEnded = true;
+                    });
+                    
+                    if (gameEnded) {
+                        let sorted = [...gameState.players].sort((a,b) => a.score - b.score);
+                        gameState.winner = sorted[0].name; 
+                        gameState.gameStatus = 'ended';
+                        broadcastState();
+                    } else {
+                        broadcastToast(`${gameState.players[pIdx].name} wins this round!`);
+                        setTimeout(() => startNextRound(), 3000);
+                    }
+                } else {
+                    gameState.winner = gameState.players[pIdx].name; 
+                    gameState.gameStatus = 'ended'; 
+                    broadcastState(); 
+                }
+                return; 
+            }
+            
+            let advance = 1; let victimId = null;
+            let nextIdx = getNextIdx(1); let nextPlayer = gameState.players[nextIdx];
+
+            if(card.value === 'reverse') { if(gameState.players.length === 2) { advance = 2; broadcastActionEffect('reverse', null, null); } else { gameState.direction *= -1; broadcastActionEffect('reverse', null, null); } } 
+            else if(card.value === 'skip') { advance = 2; victimId = nextPlayer.id; broadcastActionEffect('skip', null, victimId); } 
+            else if(card.value === 'draw2') { advance = 2; victimId = nextPlayer.id; drawFromDeck(victimId, 2); broadcastActionEffect('draw2', card.color, victimId); } 
+            else if(card.value === 'wild4') { advance = 2; victimId = nextPlayer.id; drawFromDeck(victimId, 4); broadcastActionEffect('draw4', null, victimId); }
+
+            if(card.color === 'black') { gameState.activeColor = wildColor; gameState.activeValue = null; } else { gameState.activeColor = card.color; gameState.activeValue = card.value; }
+            
+            gameState.turnIdx = getNextIdx(advance); 
+            distributeHandsToClients(); 
+            broadcastState(); 
+            setTimeout(checkBotTurn, 500);
+        }
+
+        function processDrawCard(pid) {
+            let pIdx = gameState.players.findIndex(p => p.id === pid); 
+            if(pIdx !== gameState.turnIdx) return;
+            
+            broadcastDrawAnimation(pid);
+            setTimeout(() => {
+                let drawnArr = drawFromDeck(pid, 1);
+                let drawn = drawnArr[0];
+                let isPlayable = (drawn.color === 'black') || 
+                                 (drawn.color === gameState.activeColor) || 
+                                 (drawn.value === gameState.activeValue);
+                
+                if(!isPlayable) { 
+                    gameState.turnIdx = getNextIdx(1); 
+                } else {
+                    broadcastToast("Playable card drawn!");
+                }
+                
+                distributeHandsToClients();
+                broadcastState(); 
+                setTimeout(checkBotTurn, 500);
+            }, 300);
+        }
+
+        function drawFromDeck(pid, count) { let drawn = []; for(let i=0; i<count; i++) { if(gameState.deck.length === 0) { let top = gameState.discard.pop(); gameState.deck = gameState.discard; gameState.discard = [top]; gameState.deck.sort(() => Math.random() - 0.5); } drawn.push(gameState.deck.pop()); } serverHands[pid].push(...drawn); gameState.players.find(p=>p.id===pid).handCount = serverHands[pid].length; return drawn; }
+        function getNextIdx(step) { let len = gameState.players.length; let idx = (gameState.turnIdx + (step * gameState.direction)) % len; if (idx < 0) idx += len; return idx; }
+        
+        function distributeHandsToClients() { 
+            if(serverHands[myId]) {
+                myHand = serverHands[myId];
+                renderHand();
+            }
+            if(!isBotMode) hostConnections.forEach(c => { if(serverHands[c.peer]) c.send({ type: 'HAND_UPDATE', hand: serverHands[c.peer] }); }); 
+        }
+        
+        function broadcastState() { if(isBotMode) updateUI(); else { hostConnections.forEach(c => c.send({ type: 'STATE', state: gameState })); updateUI(); } }
+        function broadcastAnimation(pid, card) { let msg = { type: 'ANIMATE_THROW', fromId: pid, card: card }; if(isBotMode) handleAnimationEvent(msg); else { hostConnections.forEach(c => c.send(msg)); handleAnimationEvent(msg); } }
+        function broadcastDrawAnimation(pid) { let msg = { type: 'ANIMATE_DRAW', toId: pid }; if(isBotMode) handleAnimationEvent(msg); else { hostConnections.forEach(c => c.send(msg)); handleAnimationEvent(msg); } }
+        function broadcastShowHands() { let msg = { type: 'SHOW_HANDS_VISUAL' }; if(isBotMode) handleShowHands(); else { hostConnections.forEach(c => c.send(msg)); handleShowHands(); } }
+        function broadcastToast(msg) { toast(msg); if(!isBotMode) hostConnections.forEach(c => c.send({ type: 'TOAST', msg: msg })); }
+
+        function checkBotTurn() { let curP = gameState.players[gameState.turnIdx]; if(curP && curP.isBot) setTimeout(() => botPlayTurn(curP), 1500); }
+        function botPlayTurn(bot) {
+            let hand = serverHands[bot.id]; let playable = []; hand.forEach((c, i) => { if(c.color === 'black' || c.color === gameState.activeColor || c.value === gameState.activeValue) playable.push(i); });
+            if(playable.length === 0) { processDrawCard(bot.id); return; }
+            let idx = playable[0]; let card = hand[idx]; let wColor = card.color === 'black' ? 'red' : null;
+            processPlayCard(bot.id, idx, wColor, hand.length === 2);
+        }
+
+        function handleClientData(data) {
+            if(data.type === 'STATE') { gameState = data.state; updateUI(); }
+            if(data.type === 'HAND_UPDATE') { myHand = data.hand; renderHand(); }
+            if(data.type === 'TOAST') toast(data.msg);
+            if(data.type === 'PEER_LIST') connectToNewPeers(data.peers);
+            if(data.type === 'ANIMATE_THROW' || data.type === 'ANIMATE_DRAW' || data.type === 'SHOW_EFFECT') handleAnimationEvent(data);
+            if(data.type === 'SHOW_HANDS_VISUAL') handleShowHands();
+            if(data.type === 'SPIN_TO_START') handleSpinAnimation(data.targetId);
+            
+            if(data.type === 'START_REMATCH_TIMER') startClientRematchTimer();
+            if(data.type === 'REMATCH_START') {
+                 hideAll(); 
+                 // Reset Client UI for next time
+                 $('client-rematch-view').style.display = 'flex'; 
+                 $('client-actions').style.display = 'flex'; 
+                 $('client-wait-msg').style.display = 'none';
+            }
+            if(data.type === 'ROOM_CLOSED') { 
+                alert("এডমিন রুম বন্ধ করে দিয়েছেন অথবা নতুন গেম শুরু হয়নি।"); 
+                goHome(); 
+            }
+        }
+
+        function sendToHost(data) { 
+            if(isHost) { 
+                if(data.type === 'PLAY_CARD') processPlayCard(myId, data.cardIdx, data.wildColor, data.unoCalled); 
+                if(data.type === 'DRAW_CARD') processDrawCard(myId); 
+            } else {
+                if(conn && conn.open) conn.send(data); 
+            }
+        }
+
+        function drawCardReq() { if(isMyTurn()) { clearDrawHint(); sendToHost({ type: 'DRAW_CARD' }); } }
+        function playCardReq(idx, cardObj) { 
+            if(!isMyTurn()) return; 
+            clearDrawHint();
+            if(cardObj.color === 'black') { pendingPlay = { idx, unoState: $('uno-btn').classList.contains('clicked') }; $('modal-color').style.display = 'flex'; } 
+            else { sendToHost({ type: 'PLAY_CARD', cardIdx: idx, wildColor: null, unoCalled: $('uno-btn').classList.contains('clicked') }); resetUnoBtn(); } 
+        }
+        function selectColor(color) { $('modal-color').style.display = 'none'; if(pendingPlay) { sendToHost({ type: 'PLAY_CARD', cardIdx: pendingPlay.idx, wildColor: color, unoCalled: pendingPlay.unoState }); resetUnoBtn(); pendingPlay = null; } }
+        function isMyTurn() { return gameState.players.findIndex(p => p.id === myId) === gameState.turnIdx; }
+        function sayUno() { if(myHand.length <= 2) { $('uno-btn').classList.add('clicked'); $('uno-btn').style.background = '#00b894'; playSound('uno'); } }
+        function resetUnoBtn() { $('uno-btn').classList.remove('clicked'); $('uno-btn').style.background = ''; $('uno-btn').style.display = 'none'; }
+
+        function updateUI() {
+            if(gameState.gameStatus === 'playing' || gameState.gameStatus === 'dealing') { 
+                if(!$('screen-game').classList.contains('active')) { hideAll(); show('screen-game'); } 
+                renderGame(); 
+                if(isMyTurn() && gameState.gameStatus === 'playing') startTurnTimer(); else clearDrawHint();
+            }
+            else if(gameState.gameStatus === 'lobby') renderLobby();
+            else if(gameState.gameStatus === 'ended') { 
+                hideAll(); 
+                $('winner-name').innerText = gameState.winner; 
+                
+                // Panels visibility reset
+                $('leaderboard-container').style.display = 'none';
+                $('client-rematch-view').style.display = 'none';
+                $('admin-rematch-view').style.display = 'none';
+                $('bot-game-over-view').style.display = 'none';
+
+                if(gameState.settings.mode === 'points') {
+                    $('leaderboard-container').style.display = 'flex';
+                    $('win-title-text').innerText = "Tournament Champion";
+                    renderLeaderboard();
+                } else {
+                    $('win-title-text').innerText = "Winner!";
+                }
+
+                if (isBotMode) {
+                    $('bot-game-over-view').style.display = 'flex';
+                } else {
+                    if(isHost) {
+                        $('admin-rematch-view').style.display = 'flex';
+                        startRematchPhaseHost();
+                    } else {
+                        // Client just waits for the signal to show UI
+                        $('client-rematch-view').style.display = 'none'; 
+                    }
+                }
+                show('screen-winner');
+            }
+        }
+        
+        function renderLeaderboard() {
+            const tbody = $('leaderboard-body');
+            tbody.innerHTML = '';
+            let sorted = [...gameState.players].sort((a,b) => a.score - b.score);
+            sorted.forEach((p, index) => {
+                let row = `<tr>
+                    <td>#${index + 1}</td>
+                    <td>${p.name}</td>
+                    <td>${p.score}</td>
+                </tr>`;
+                tbody.innerHTML += row;
+            });
+        }
+
+        function renderLobby() { const list = $('lobby-players'); list.innerHTML = ''; gameState.players.forEach(p => { list.innerHTML += `<div class="lobby-card"><i class="fas fa-user-circle" style="font-size:1.5rem;"></i> ${p.name}</div>`; }); if(isHost && gameState.players.length >= 2) $('start-btn').style.display = 'block'; }
+
+        function renderGame() {
+            $('seat-left').innerHTML = ''; $('seat-top').innerHTML = ''; $('seat-right').innerHTML = '';
+            let myIdx = gameState.players.findIndex(p => p.id === myId); let total = gameState.players.length;
+            const myContainer = $('my-hand-area-container');
+            if(myIdx === gameState.turnIdx) myContainer.classList.add('my-turn-active'); else myContainer.classList.remove('my-turn-active');
+
+            const sb = $('game-scoreboard');
+            if(gameState.settings.mode === 'points') {
+                sb.style.display = 'flex';
+                sb.innerHTML = `<div style="color:#aaa; font-size:0.8rem; margin-bottom:5px;">Target: ${gameState.settings.pointLimit}</div>`;
+                gameState.players.forEach(p => {
+                    sb.innerHTML += `<div class="sb-row"><span class="sb-name">${p.name}</span><span class="sb-score">${p.score}</span></div>`;
+                });
+            } else {
+                sb.style.display = 'none';
+            }
+
+            for(let i=1; i<total; i++) {
+                let pIdx = (myIdx + i) % total; let p = gameState.players[pIdx];
+                let slotId = (total === 2) ? 'seat-top' : (i===1 ? 'seat-left' : (i===2 ? 'seat-top' : 'seat-right'));
+                let stackClass = (slotId === 'seat-top') ? 'stack-horizontal' : 'stack-vertical';
+                let isMuted = false; if(!p.isBot) { let el = document.getElementById(`audio-${p.id}`); if(el && el.muted) isMuted = true; }
+                let muteHtml = p.isBot ? '<i class="fas fa-robot"></i>' : `<span class="mute-opponent-btn ${isMuted?'muted':''}" onclick="toggleOpponentMute('${p.id}', this)">${isMuted ? '<i class="fas fa-volume-mute"></i>' : '<i class="fas fa-volume-up"></i>'}</span>`;
+                let stackHtml = ''; let countToShow = p.handCount;
+                for(let k=0; k<Math.min(countToShow, 15); k++) stackHtml += `<div class="opp-card"></div>`;
+                
+                let scoreBadge = gameState.settings.mode === 'points' ? `<div class="p-score-badge">Pts: ${p.score}</div>` : '';
+                const infoBox = `<div class="p-info-box"><span class="p-name">${p.name}</span>${scoreBadge}${muteHtml}</div>`;
+                const stackBox = `<div class="card-stack ${stackClass} ${countToShow >= 0 ? 'visible':''}" id="stack-${p.id}">${stackHtml}</div>`;
+                let finalHtml = (slotId === 'seat-left') ? stackBox + infoBox : (slotId === 'seat-right' ? infoBox + stackBox : stackBox + infoBox);
+                let seatEl = $(slotId); seatEl.innerHTML = finalHtml; 
+                (pIdx === gameState.turnIdx) ? seatEl.classList.add('active-turn') : seatEl.classList.remove('active-turn');
+            }
+            let topCard = gameState.discard[gameState.discard.length - 1];
+            $('discard-pile').innerHTML = createCardHTML(topCard, topCard.color === 'black' ? gameState.activeColor : topCard.color);
+            $('active-color-bubble').className = `color-bubble c-${gameState.activeColor}`;
+            $('dir-spinner').className = `direction-spin ${gameState.direction === 1 ? 'spin-cw' : 'spin-ccw'}`;
+            $('turn-indicator').innerText = gameState.gameStatus === 'dealing' ? "কার্ড দেওয়া হচ্ছে..." : (isMyTurn() ? "আপনার চাল!" : `${gameState.players[gameState.turnIdx].name} এর চাল...`);
+            renderHand();
+        }
+
+        function renderHand() {
+            const handDiv = $('my-hand'); handDiv.innerHTML = ''; 
+            let myTurn = isMyTurn();
+            let hasPlayable = myHand.some(c => c.color === 'black' || c.color === gameState.activeColor || c.value === gameState.activeValue);
+            
+            if(myHand.length === 2 && myTurn && hasPlayable) {
+                $('uno-btn').style.display = 'flex';
+            } else {
+                $('uno-btn').style.display = 'none';
+            }
+            
+            myHand.forEach((card, idx) => {
+                let wrapper = document.createElement('div'); wrapper.className = 'hand-card-wrapper';
+                let isValid = myTurn && (card.color === 'black' || card.color === gameState.activeColor || card.value === gameState.activeValue);
+                if(isValid) { wrapper.classList.add('valid-card'); wrapper.onclick = () => playCardReq(idx, card); } else if(myTurn) wrapper.classList.add('disabled');
+                wrapper.innerHTML = createCardHTML(card, card.color); handDiv.appendChild(wrapper);
+            });
+            if(myHand.length > 0) $('my-hand-area-container').classList.add('visible');
+        }
+        
+        function handleShowHands() { document.querySelectorAll('.card-stack').forEach(el => el.classList.add('visible')); $('my-hand-area-container').classList.add('visible'); }
+        function handleSpinAnimation(targetId) {
+            let targetEl = (targetId === myId) ? $('my-hand-area-container') : $(`stack-${targetId}`); if(!targetEl) return;
+            const box = targetEl.getBoundingClientRect(); const cx = window.innerWidth / 2; const cy = window.innerHeight / 2;
+            const deltaX = (box.left + box.width/2) - cx; const deltaY = (box.top + box.height/2) - cy;
+            let finalRot = (Math.atan2(deltaY, deltaX) * (180 / Math.PI)) + 1080; 
+            const arrowCont = $('starter-arrow-container'); const arrow = $('starter-arrow'); arrowCont.style.display = 'block'; arrow.style.transition = 'none'; arrow.style.transform = 'rotate(0deg)'; void arrow.offsetWidth; arrow.style.transition = 'transform 3s cubic-bezier(0.1, 0, 0.1, 1)'; arrow.style.transform = `rotate(${finalRot}deg)`; setTimeout(() => { arrowCont.style.display = 'none'; }, 3500);
+        }
+
+        function createCardHTML(card, forceColor) {
+            let disp = card.value; let icon = disp;
+            if(typeof disp !== 'number') { if(disp === 'skip') icon = '<i class="fas fa-ban"></i>'; if(disp === 'reverse') icon = '<i class="fas fa-sync-alt"></i>'; if(disp === 'draw2') icon = '+2'; if(disp === 'wild') icon = '<i class="fas fa-paw"></i>'; if(disp === 'wild4') icon = '+4'; }
+            return `<div class="card c-${forceColor}"><span class="card-icon-corner tl">${icon}</span><div class="card-inner">${icon}</div><span class="card-icon-corner br">${icon}</span></div>`;
+        }
+
+        function handleAnimationEvent(data) {
+            if (data.type === 'SHOW_EFFECT') triggerActionAnimation(data.effect, data.color, data.targetId);
+            else if(data.type === 'ANIMATE_DRAW') {
+                playSound('draw'); let cardEl = document.createElement('div'); cardEl.className = 'flying-card'; cardEl.innerHTML = `<div style="width:80px; height:120px; background:var(--card-back-grad); border:2px solid white; border-radius:6px;"></div>`;
+                let start = $('draw-pile').getBoundingClientRect(); let dest = (data.toId === myId) ? $('my-hand-area-container').getBoundingClientRect() : ($(`stack-${data.toId}`) ? $(`stack-${data.toId}`).getBoundingClientRect() : {top:0, left:0});
+                document.body.appendChild(cardEl); cardEl.style.left = start.left+'px'; cardEl.style.top = start.top+'px';
+                let targetX = dest.left + (dest.width/2) - 40; let targetY = dest.top + (dest.height/2) - 60;
+                setTimeout(() => { cardEl.style.left = targetX+'px'; cardEl.style.top = targetY+'px'; cardEl.style.transform = 'scale(0.5)'; }, 50); setTimeout(() => cardEl.remove(), 650);
+            } else {
+                playSound('throw'); let cardEl = document.createElement('div'); cardEl.className = 'flying-card'; cardEl.innerHTML = createCardHTML(data.card, data.card.color);
+                let start = (data.fromId === myId) ? {left: window.innerWidth/2, top: window.innerHeight} : $(`stack-${data.fromId}`).getBoundingClientRect(); let dest = $('discard-pile').getBoundingClientRect();
+                document.body.appendChild(cardEl); cardEl.style.left = start.left+'px'; cardEl.style.top = start.top+'px';
+                setTimeout(() => { cardEl.style.left = dest.left+'px'; cardEl.style.top = dest.top+'px'; cardEl.style.transform = 'rotate(360deg)'; }, 50); setTimeout(() => cardEl.remove(), 650);
+            }
+        }
+
+        // --- UPDATED REMATCH LOGIC ---
+
+        function startRematchPhaseHost() {
+            // Initialize Admin State
+            if(rematchTimerInt) clearInterval(rematchTimerInt);
+            if(rematchDecisionTimerInt) clearInterval(rematchDecisionTimerInt);
+            
+            rematchPlayers = [gameState.players.find(p => p.id === myId)]; // Admin is always in by default? Or admin decides later.
+            adminCanStart = false;
+            
+            updateRematchListUI();
+            
+            // Visuals for Admin
+            $('admin-vote-timer-area').style.display = 'block';
+            $('admin-decision-area').style.display = 'none';
+            $('admin-start-btn').disabled = true;
+            $('admin-start-btn').innerText = "Wait...";
+            $('admin-status-text').innerText = "সবার উত্তরের জন্য অপেক্ষা করা হচ্ছে...";
+            $('admin-timer').innerText = "5";
+            
+            // 1. Send signal to Clients to start 5s timer
+            if(!isBotMode) hostConnections.forEach(c => c.send({ type: 'START_REMATCH_TIMER' }));
+            
+            // 2. Admin's Local 5s Timer (Voting Phase)
+            let voteTime = 5;
+            rematchTimerInt = setInterval(() => {
+                voteTime--;
+                $('admin-timer').innerText = voteTime;
+                
+                if(voteTime <= 0) {
+                    clearInterval(rematchTimerInt);
+                    startAdminDecisionPhase();
+                }
+            }, 1000);
+        }
+        
+        function startAdminDecisionPhase() {
+            // Switch UI to Decision Mode
+            $('admin-vote-timer-area').style.display = 'none';
+            $('admin-decision-area').style.display = 'block';
+            
+            $('admin-status-text').innerText = "এখন খেলা শুরু করতে 'Start Game' চাপুন (৮ সেকেন্ড)";
+            $('admin-start-btn').disabled = false;
+            $('admin-start-btn').innerText = "Start Game";
+            adminCanStart = true;
+            
+            // 3. Admin's 8s Decision Timer
+            let decisionTime = 8;
+            $('admin-decision-timer').innerText = decisionTime;
+            
+            rematchDecisionTimerInt = setInterval(() => {
+                decisionTime--;
+                $('admin-decision-timer').innerText = decisionTime;
+                
+                if(decisionTime <= 0) {
+                    clearInterval(rematchDecisionTimerInt);
+                    // Time expired, close room
+                    adminGoHome();
+                }
+            }, 1000);
+        }
+
+        function startClientRematchTimer() {
+            // Show Client UI
+            $('client-rematch-view').style.display = 'flex';
+            $('client-actions').style.display = 'flex';
+            $('client-wait-msg').style.display = 'none';
+            
+            let cTime = 5;
+            $('client-timer').innerText = cTime;
+            
+            let cTimerInt = setInterval(() => {
+                cTime--;
+                $('client-timer').innerText = cTime;
+                if(cTime <= 0) {
+                    clearInterval(cTimerInt);
+                    // If time up and not voted, treat as NO
+                    if($('client-actions').style.display !== 'none') {
+                         clientVote(false);
+                    }
+                }
+            }, 1000);
+        }
+        
+        function clientVote(wantToPlay) {
+            $('client-actions').style.display = 'none';
+            
+            if (wantToPlay) {
+                // YES: Send to Admin
+                if(conn && conn.open) conn.send({ type: 'REMATCH_YES' });
+                $('client-wait-msg').style.display = 'block';
+            } else {
+                // NO: Go Home (Reload)
+                // Optionally send LEAVE to be nice, then reload
+                if(conn && conn.open) conn.send({ type: 'LEAVE_GAME' });
+                setTimeout(() => location.reload(), 100);
+            }
+        }
+
+        function removePlayer(pid) {
+            gameState.players = gameState.players.filter(p => p.id !== pid);
+            let cIdx = hostConnections.findIndex(c => c.peer === pid);
+            if(cIdx > -1) hostConnections.splice(cIdx, 1);
+            // Also update rematch list just in case
+            rematchPlayers = rematchPlayers.filter(p => p.id !== pid);
+            updateRematchListUI();
+        }
+        
+        function updateRematchListUI() {
+            const list = $('rematch-player-list'); list.innerHTML = '';
+            rematchPlayers.forEach(p => { list.innerHTML += `<div class="plist-item"><i class="fas fa-check-circle"></i> ${p.name}</div>`; });
+        }
+
+        function adminStartGame() {
+            if(!adminCanStart) return;
+            if(rematchDecisionTimerInt) clearInterval(rematchDecisionTimerInt);
+            
+            // Filter connections: Remove anyone NOT in rematchPlayers
+            // Actually, rematchPlayers contains player Objects.
+            
+            if(rematchPlayers.length < 2) { 
+                alert("খেলার জন্য পর্যাপ্ত প্লেয়ার নেই (কমপক্ষে ২ জন)!"); 
+                adminGoHome(); 
+                return; 
+            }
+            
+            // Set new player list
+            gameState.players = rematchPlayers;
+            // Reset scores if you want, or keep tournament mode
+            gameState.players.forEach(p => { 
+                // Only reset hand count, keep score or reset based on pref. 
+                // Assuming "Play Again" means fresh start for simplicity
+                p.score = 0; 
+                p.handCount = 0;
+            });
+
+            // Notify clients to reset UI
+            if(!isBotMode) {
+                // Broadcast to everyone (even those not playing might receive this if connection lingers, 
+                // but we only care about those in the list)
+                hostConnections.forEach(c => c.send({ type: 'REMATCH_START' }));
+                broadcastPeerList();
+            }
+            
+            hideAll(); 
+            show('screen-game'); 
+            startGameHost();
+        }
+
+        function adminGoHome() {
+            if(rematchTimerInt) clearInterval(rematchTimerInt);
+            if(rematchDecisionTimerInt) clearInterval(rematchDecisionTimerInt);
+            
+            if(!isBotMode) hostConnections.forEach(c => c.send({ type: 'ROOM_CLOSED' }));
+            location.reload();
+        }
+
+        function goHome() { location.reload(); }
+
+    </script>
+</body>
+</html>
